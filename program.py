@@ -1,7 +1,7 @@
 import tkinter as tk
 from tkinter import filedialog, ttk, messagebox
 from PIL import Image, ImageTk
-import os
+from datetime import datetime
 
 
 class ImageOverlayApp:
@@ -22,6 +22,7 @@ class ImageOverlayApp:
         self.graphic_image = None
         self.base_image = None
         self.preview_image = None
+        self.current_composite = None  # Store the current composite image for export
 
         # Create main frames
         self.create_layout()
@@ -161,6 +162,15 @@ class ImageOverlayApp:
         )
         scale_y_spinbox.pack(side=tk.LEFT)
 
+        # Export button
+        export_frame = tk.Frame(parent)
+        export_frame.pack(fill=tk.X, padx=10, pady=10)
+
+        export_button = tk.Button(
+            export_frame, text="Export Image", command=self.export_image, width=20
+        )
+        export_button.pack(side=tk.TOP)
+
     def create_preview_section(self, parent):
         # Create canvas for preview
         self.preview_canvas = tk.Canvas(parent, bg="white")
@@ -262,6 +272,9 @@ class ImageOverlayApp:
             else:
                 composite.paste(graphic_resized, (paste_x, paste_y))
 
+            # Store the current composite for export
+            self.current_composite = composite
+
             # Create a PhotoImage object from the composite image
             self.preview_image = ImageTk.PhotoImage(composite)
 
@@ -279,6 +292,27 @@ class ImageOverlayApp:
         except Exception as e:
             messagebox.showerror("Error", f"Error updating preview: {e}")
             print(f"Error updating preview: {e}")
+
+    def export_image(self):
+        if not self.current_composite:
+            messagebox.showerror(
+                "Error",
+                "No image to export. Please load both base and graphic images first.",
+            )
+            return
+
+        # Generate filename with current timestamp
+        timestamp = (
+            datetime.now().isoformat().replace(":", "-").split(".")[0]
+        )  # Remove milliseconds and replace colons
+        filename = f"export_{timestamp}.png"
+
+        try:
+            # Save the image
+            self.current_composite.save(filename, "PNG")
+            messagebox.showinfo("Success", f"Image exported successfully as {filename}")
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to export image: {e}")
 
 
 if __name__ == "__main__":
