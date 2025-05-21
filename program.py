@@ -77,32 +77,45 @@ class ImageOverlayApp:
         right_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=10, pady=10)
         right_frame.pack_propagate(False)
 
-        # Split left frame into top and bottom
-        select_frame = tk.LabelFrame(left_frame, text="Select", height=300)
-        select_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 5))
+        # Split left frame into base and graphic sections
+        base_frame = tk.LabelFrame(left_frame, text="Base", height=150)
+        base_frame.pack(fill=tk.BOTH, expand=False, pady=(0, 5))
 
-        edit_frame = tk.LabelFrame(left_frame, text="Edit", height=300)
-        edit_frame.pack(fill=tk.BOTH, expand=True, pady=(5, 0))
+        graphic_frame = tk.LabelFrame(left_frame, text="Graphic", height=450)
+        graphic_frame.pack(fill=tk.BOTH, expand=True, pady=(5, 0))
 
         # Create preview frame on right
         preview_frame = tk.LabelFrame(right_frame, text="Preview")
         preview_frame.pack(fill=tk.BOTH, expand=True)
 
-        # Fill the Select frame
-        self.create_select_section(select_frame)
+        # Fill the Base frame
+        self.create_base_section(base_frame)
 
-        # Fill the Edit frame
-        self.create_edit_section(edit_frame)
+        # Fill the Graphic frame
+        self.create_graphic_section(graphic_frame)
 
         # Fill the Preview frame
         self.create_preview_section(preview_frame)
 
-    def create_select_section(self, parent):
+    def create_base_section(self, parent):
+        # Base image selection
+        base_frame = tk.Frame(parent)
+        base_frame.pack(fill=tk.X, padx=10, pady=10)
+
+        tk.Label(base_frame, text="Image:").pack(side=tk.LEFT, padx=(0, 10))
+
+        base_entry = tk.Entry(base_frame, textvariable=self.base_path, width=20)
+        base_entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
+
+        base_button = tk.Button(base_frame, text="Browse...", command=self.select_base)
+        base_button.pack(side=tk.RIGHT, padx=(5, 0))
+
+    def create_graphic_section(self, parent):
         # Graphic image selection
         graphic_frame = tk.Frame(parent)
-        graphic_frame.pack(fill=tk.X, padx=10, pady=10)
+        graphic_frame.pack(fill=tk.X, padx=10, pady=5)
 
-        tk.Label(graphic_frame, text="Graphic:").pack(side=tk.LEFT, padx=(0, 10))
+        tk.Label(graphic_frame, text="Image:").pack(side=tk.LEFT, padx=(0, 10))
 
         graphic_entry = tk.Entry(
             graphic_frame, textvariable=self.graphic_path, width=20
@@ -114,21 +127,12 @@ class ImageOverlayApp:
         )
         graphic_button.pack(side=tk.RIGHT, padx=(5, 0))
 
-        # Base image selection
-        base_frame = tk.Frame(parent)
-        base_frame.pack(fill=tk.X, padx=10, pady=10)
+        # Position controls
+        position_frame = tk.LabelFrame(parent, text="Position")
+        position_frame.pack(fill=tk.X, padx=10, pady=5)
 
-        tk.Label(base_frame, text="Base:").pack(side=tk.LEFT, padx=(0, 10))
-
-        base_entry = tk.Entry(base_frame, textvariable=self.base_path, width=20)
-        base_entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
-
-        base_button = tk.Button(base_frame, text="Browse...", command=self.select_base)
-        base_button.pack(side=tk.RIGHT, padx=(5, 0))
-
-    def create_edit_section(self, parent):
         # X coordinate
-        x_frame = tk.Frame(parent)
+        x_frame = tk.Frame(position_frame)
         x_frame.pack(fill=tk.X, padx=10, pady=5)
 
         tk.Label(x_frame, text="X:").pack(side=tk.LEFT, padx=(0, 10))
@@ -144,7 +148,7 @@ class ImageOverlayApp:
         x_spinbox.pack(side=tk.LEFT)
 
         # Y coordinate
-        y_frame = tk.Frame(parent)
+        y_frame = tk.Frame(position_frame)
         y_frame.pack(fill=tk.X, padx=10, pady=5)
 
         tk.Label(y_frame, text="Y:").pack(side=tk.LEFT, padx=(0, 10))
@@ -159,11 +163,15 @@ class ImageOverlayApp:
         )
         y_spinbox.pack(side=tk.LEFT)
 
+        # Scale controls
+        scale_frame = tk.LabelFrame(parent, text="Scale")
+        scale_frame.pack(fill=tk.X, padx=10, pady=5)
+
         # Scale X
-        scale_x_frame = tk.Frame(parent)
+        scale_x_frame = tk.Frame(scale_frame)
         scale_x_frame.pack(fill=tk.X, padx=10, pady=5)
 
-        tk.Label(scale_x_frame, text="Scale X (%):").pack(side=tk.LEFT, padx=(0, 10))
+        tk.Label(scale_x_frame, text="X (%):").pack(side=tk.LEFT, padx=(0, 10))
 
         scale_x_spinbox = ttk.Spinbox(
             scale_x_frame,
@@ -176,10 +184,10 @@ class ImageOverlayApp:
         scale_x_spinbox.pack(side=tk.LEFT)
 
         # Scale Y
-        scale_y_frame = tk.Frame(parent)
+        scale_y_frame = tk.Frame(scale_frame)
         scale_y_frame.pack(fill=tk.X, padx=10, pady=5)
 
-        tk.Label(scale_y_frame, text="Scale Y (%):").pack(side=tk.LEFT, padx=(0, 10))
+        tk.Label(scale_y_frame, text="Y (%):").pack(side=tk.LEFT, padx=(0, 10))
 
         scale_y_spinbox = ttk.Spinbox(
             scale_y_frame,
