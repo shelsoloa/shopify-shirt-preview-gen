@@ -2,6 +2,34 @@ import tkinter as tk
 from tkinter import filedialog, ttk, messagebox
 from PIL import Image, ImageTk
 from datetime import datetime
+import time
+from functools import wraps
+
+
+def debounce(wait):
+    """Decorator that will postpone a function's execution until after `wait` seconds
+    have elapsed since the last time it was invoked."""
+
+    def decorator(fn):
+        timer = None
+
+        @wraps(fn)
+        def debounced(*args, **kwargs):
+            nonlocal timer
+
+            def call_function():
+                fn(*args, **kwargs)
+
+            # Cancel previous timer if it exists
+            if timer is not None:
+                args[0].root.after_cancel(timer)
+
+            # Schedule new timer
+            timer = args[0].root.after(int(wait * 1000), call_function)
+
+        return debounced
+
+    return decorator
 
 
 class ImageOverlayApp:
@@ -30,6 +58,23 @@ class ImageOverlayApp:
         self.reference_scale_x = tk.IntVar(value=100)  # Reference X scale percentage
         self.reference_scale_y = tk.IntVar(value=100)  # Reference Y scale percentage
 
+        # Cache for processed images
+        self.cache = {
+            "base_img": None,
+            "graphic_img": None,
+            "reference_img": None,
+            "base_path": None,
+            "graphic_path": None,
+            "reference_path": None,
+            "resized_base": None,
+            "resized_graphic": None,
+            "resized_reference": None,
+            "last_canvas_size": (0, 0),
+            "last_scale": (100, 100),
+            "last_ref_scale": (100, 100),
+            "last_opacity": 30,
+        }
+
         # Store image objects
         self.graphic_image = None
         self.base_image = None
@@ -40,20 +85,23 @@ class ImageOverlayApp:
         # Create main frames
         self.create_layout()
 
-        # Bind variables to update preview
-        self.graphic_path.trace_add("write", self.update_preview)
-        self.base_path.trace_add("write", self.update_preview)
-        self.reference_path.trace_add("write", self.update_preview)
-        self.x_coord.trace_add("write", self.update_preview)
-        self.y_coord.trace_add("write", self.update_preview)
-        self.scale_x.trace_add("write", self.update_preview)
-        self.scale_y.trace_add("write", self.update_preview)
-        self.show_reference.trace_add("write", self.update_preview)
-        self.reference_opacity.trace_add("write", self.update_preview)
-        self.reference_x.trace_add("write", self.update_preview)
-        self.reference_y.trace_add("write", self.update_preview)
-        self.reference_scale_x.trace_add("write", self.update_preview)
-        self.reference_scale_y.trace_add("write", self.update_preview)
+        # Bind variables to update preview with debounce
+        for var in [
+            self.graphic_path,
+            self.base_path,
+            self.reference_path,
+            self.x_coord,
+            self.y_coord,
+            self.scale_x,
+            self.scale_y,
+            self.show_reference,
+            self.reference_opacity,
+            self.reference_x,
+            self.reference_y,
+            self.reference_scale_x,
+            self.reference_scale_y,
+        ]:
+            var.trace_add("write", self.trigger_update_preview)
 
         # Schedule an initial canvas size update after UI is fully loaded
         self.root.after(100, self.update_preview)
@@ -384,69 +432,105 @@ class ImageOverlayApp:
         # Clear current preview
         self.preview_canvas.delete("all")
 
+        # Get canvas dimensions
+        canvas_width = self.preview_canvas.winfo_width()
+        canvas_height = self.preview_canvas.winfo_height()
+
+        # If canvas is not visible yet, set minimum dimensions
+        if canvas_width <= 1 or canvas_height <= 1:
+            canvas_width = 400
+            canvas_height = 400
+
+        canvas_size = (canvas_width, canvas_height)
+        current_scale = (self.scale_x.get(), self.scale_y.get())
+
         # Check if we have both images for the composite
         if self.base_path.get() and self.graphic_path.get():
             try:
-                # Load the base image
-                base_img = Image.open(self.base_path.get())
+                # Load or get from cache the base image
+                if (
+                    self.cache["base_path"] != self.base_path.get()
+                    or self.cache["base_img"] is None
+                ):
+                    self.cache["base_img"] = Image.open(self.base_path.get())
+                    self.cache["base_path"] = self.base_path.get()
 
-                # Load the graphic image
-                graphic_img = Image.open(self.graphic_path.get())
+                base_img = self.cache["base_img"]
 
-                # Get canvas dimensions
-                canvas_width = self.preview_canvas.winfo_width()
-                canvas_height = self.preview_canvas.winfo_height()
+                # Load or get from cache the graphic image
+                if (
+                    self.cache["graphic_path"] != self.graphic_path.get()
+                    or self.cache["graphic_img"] is None
+                ):
+                    self.cache["graphic_img"] = Image.open(self.graphic_path.get())
+                    self.cache["graphic_path"] = self.graphic_path.get()
 
-                # If canvas is not visible yet, set minimum dimensions
-                if canvas_width <= 1 or canvas_height <= 1:
-                    canvas_width = 400
-                    canvas_height = 400
+                graphic_img = self.cache["graphic_img"]
 
-                # Resize the base image to fit the canvas (maintaining aspect ratio)
-                base_width, base_height = base_img.size
-                base_ratio = min(canvas_width / base_width, canvas_height / base_height)
-                new_width = int(base_width * base_ratio)
-                new_height = int(base_height * base_ratio)
+                # Only resize base image if canvas size changed
+                if (
+                    self.cache["last_canvas_size"] != canvas_size
+                    or self.cache["resized_base"] is None
+                ):
+                    # Resize the base image to fit the canvas (maintaining aspect ratio)
+                    base_width, base_height = base_img.size
+                    base_ratio = min(
+                        canvas_width / base_width, canvas_height / base_height
+                    )
+                    new_width = int(base_width * base_ratio)
+                    new_height = int(base_height * base_ratio)
 
-                resized_base = base_img.resize(
-                    (new_width, new_height), Image.Resampling.LANCZOS
-                )
+                    self.cache["resized_base"] = base_img.resize(
+                        (new_width, new_height), Image.Resampling.LANCZOS
+                    )
+                    self.cache["last_canvas_size"] = canvas_size
 
-                # Create a composite image by pasting the graphic onto the base
+                resized_base = self.cache["resized_base"]
                 composite = resized_base.copy()
 
                 # Calculate scaled position based on original base image dimensions
-                x_scale = new_width / base_width
-                y_scale = new_height / base_height
+                base_width, base_height = base_img.size
+                x_scale = resized_base.width / base_width
+                y_scale = resized_base.height / base_height
 
                 x_pos = int(self.x_coord.get() * x_scale)
                 y_pos = int(self.y_coord.get() * y_scale)
 
                 # Determine the center position on the base image
-                center_x = new_width // 2
-                center_y = new_height // 2
+                center_x = resized_base.width // 2
+                center_y = resized_base.height // 2
 
-                # Calculate scaled dimensions for graphic
-                graphic_width = int(graphic_img.width * base_ratio)
-                graphic_height = int(graphic_img.height * base_ratio)
+                # Only resize graphic if scale changed
+                if (
+                    self.cache["last_scale"] != current_scale
+                    or self.cache["resized_graphic"] is None
+                ):
+                    # Calculate scaled dimensions for graphic
+                    base_ratio = min(
+                        canvas_width / base_width, canvas_height / base_height
+                    )
+                    graphic_width = int(graphic_img.width * base_ratio)
+                    graphic_height = int(graphic_img.height * base_ratio)
 
-                # Apply X and Y scaling
-                scale_x_factor = self.scale_x.get() / 100.0
-                scale_y_factor = self.scale_y.get() / 100.0
-                graphic_width = int(graphic_width * scale_x_factor)
-                graphic_height = int(graphic_height * scale_y_factor)
+                    # Apply X and Y scaling
+                    scale_x_factor = self.scale_x.get() / 100.0
+                    scale_y_factor = self.scale_y.get() / 100.0
+                    graphic_width = int(graphic_width * scale_x_factor)
+                    graphic_height = int(graphic_height * scale_y_factor)
 
-                graphic_resized = graphic_img.resize(
-                    (graphic_width, graphic_height), Image.Resampling.LANCZOS
-                )
+                    self.cache["resized_graphic"] = graphic_img.resize(
+                        (graphic_width, graphic_height), Image.Resampling.LANCZOS
+                    )
+                    self.cache["last_scale"] = current_scale
 
-                # Calculate top-left position for the graphic image, accounting for its size
+                graphic_resized = self.cache["resized_graphic"]
+
+                # Calculate top-left position for the graphic image
                 paste_x = center_x + x_pos - (graphic_resized.width // 2)
                 paste_y = center_y + y_pos - (graphic_resized.height // 2)
 
                 # Paste the graphic onto the composite image
                 if graphic_resized.mode == "RGBA":
-                    # Use alpha channel for transparent images
                     composite.paste(
                         graphic_resized, (paste_x, paste_y), graphic_resized
                     )
@@ -475,53 +559,65 @@ class ImageOverlayApp:
                 messagebox.showerror("Error", f"Error updating preview: {e}")
                 print(f"Error updating preview: {e}")
 
-        # Load and display reference image if path exists and show_reference is True
+        # Handle reference image
         if self.reference_path.get() and self.show_reference.get():
             try:
-                reference_img = Image.open(self.reference_path.get())
+                # Load or get from cache the reference image
+                if (
+                    self.cache["reference_path"] != self.reference_path.get()
+                    or self.cache["reference_img"] is None
+                ):
+                    self.cache["reference_img"] = Image.open(self.reference_path.get())
+                    self.cache["reference_path"] = self.reference_path.get()
 
-                # Get canvas dimensions
-                canvas_width = self.preview_canvas.winfo_width()
-                canvas_height = self.preview_canvas.winfo_height()
-
-                # If canvas is not visible yet, set minimum dimensions
-                if canvas_width <= 1 or canvas_height <= 1:
-                    canvas_width = 400
-                    canvas_height = 400
-
-                # Resize the reference image to fit the canvas (maintaining aspect ratio)
-                ref_width, ref_height = reference_img.size
-                ref_ratio = min(canvas_width / ref_width, canvas_height / ref_height)
-
-                # Calculate base size (before user scaling)
-                base_width = int(ref_width * ref_ratio)
-                base_height = int(ref_height * ref_ratio)
-
-                # Apply user scaling
-                scale_x_factor = self.reference_scale_x.get() / 100.0
-                scale_y_factor = self.reference_scale_y.get() / 100.0
-                new_width = int(base_width * scale_x_factor)
-                new_height = int(base_height * scale_y_factor)
-
-                resized_reference = reference_img.resize(
-                    (new_width, new_height), Image.Resampling.LANCZOS
+                reference_img = self.cache["reference_img"]
+                current_ref_scale = (
+                    self.reference_scale_x.get(),
+                    self.reference_scale_y.get(),
                 )
 
-                # Convert to RGBA if not already
-                if resized_reference.mode != "RGBA":
-                    resized_reference = resized_reference.convert("RGBA")
+                # Only resize reference if scale or opacity changed
+                if (
+                    self.cache["last_ref_scale"] != current_ref_scale
+                    or self.cache["last_opacity"] != self.reference_opacity.get()
+                    or self.cache["resized_reference"] is None
+                ):
+                    # Calculate base size (before user scaling)
+                    ref_width, ref_height = reference_img.size
+                    ref_ratio = min(
+                        canvas_width / ref_width, canvas_height / ref_height
+                    )
+                    base_width = int(ref_width * ref_ratio)
+                    base_height = int(ref_height * ref_ratio)
 
-                # Apply opacity
-                opacity = self.reference_opacity.get() / 100.0
-                data = resized_reference.getdata()
-                new_data = []
-                for item in data:
-                    # Preserve original alpha if it exists, otherwise use full opacity
-                    original_alpha = item[3] if len(item) > 3 else 255
-                    new_alpha = int(original_alpha * opacity)
-                    new_data.append((*item[:3], new_alpha))
+                    # Apply user scaling
+                    scale_x_factor = self.reference_scale_x.get() / 100.0
+                    scale_y_factor = self.reference_scale_y.get() / 100.0
+                    new_width = int(base_width * scale_x_factor)
+                    new_height = int(base_height * scale_y_factor)
 
-                resized_reference.putdata(new_data)
+                    resized_reference = reference_img.resize(
+                        (new_width, new_height), Image.Resampling.LANCZOS
+                    )
+
+                    # Convert to RGBA and apply opacity
+                    if resized_reference.mode != "RGBA":
+                        resized_reference = resized_reference.convert("RGBA")
+
+                    opacity = self.reference_opacity.get() / 100.0
+                    alpha = int(255 * opacity)
+
+                    # Optimize opacity application using point()
+                    bands = list(resized_reference.split())
+                    if len(bands) == 4:
+                        bands[3] = bands[3].point(lambda x: int(x * opacity))
+                        resized_reference = Image.merge("RGBA", bands)
+
+                    self.cache["resized_reference"] = resized_reference
+                    self.cache["last_ref_scale"] = current_ref_scale
+                    self.cache["last_opacity"] = self.reference_opacity.get()
+
+                resized_reference = self.cache["resized_reference"]
 
                 # Create a PhotoImage object from the reference image
                 self.reference_image = ImageTk.PhotoImage(resized_reference)
@@ -596,6 +692,13 @@ class ImageOverlayApp:
                 )
             except Exception as e:
                 messagebox.showerror("Error", f"Failed to save image: {e}")
+
+    def trigger_update_preview(self, *args):
+        self.debounced_update_preview()
+
+    @debounce(0.1)  # 100ms debounce
+    def debounced_update_preview(self):
+        self.update_preview()
 
 
 if __name__ == "__main__":
