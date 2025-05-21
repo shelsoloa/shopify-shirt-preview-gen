@@ -17,3 +17,8 @@ venv/
 
 # PyInstaller
 dist/
+
+# Project Specific
+export_*.png
+export_*.jpg
+export_*.jpeg
