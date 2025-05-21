@@ -16,15 +16,25 @@ class ImageOverlayApp:
         # Variables to store file paths and coordinates
         self.graphic_path = tk.StringVar()
         self.base_path = tk.StringVar()
+        self.reference_path = tk.StringVar()
         self.x_coord = tk.IntVar(value=0)
         self.y_coord = tk.IntVar(value=0)
         self.scale_x = tk.IntVar(value=100)  # Scale X in percentage
         self.scale_y = tk.IntVar(value=100)  # Scale Y in percentage
+        self.show_reference = tk.BooleanVar(value=True)  # Toggle for reference image
+        self.reference_opacity = tk.IntVar(
+            value=30
+        )  # Opacity for reference image (0-100)
+        self.reference_x = tk.IntVar(value=0)  # Reference X position
+        self.reference_y = tk.IntVar(value=0)  # Reference Y position
+        self.reference_scale_x = tk.IntVar(value=100)  # Reference X scale percentage
+        self.reference_scale_y = tk.IntVar(value=100)  # Reference Y scale percentage
 
         # Store image objects
         self.graphic_image = None
         self.base_image = None
         self.preview_image = None
+        self.reference_image = None
         self.current_composite = None  # Store the current composite image for export
 
         # Create main frames
@@ -33,10 +43,17 @@ class ImageOverlayApp:
         # Bind variables to update preview
         self.graphic_path.trace_add("write", self.update_preview)
         self.base_path.trace_add("write", self.update_preview)
+        self.reference_path.trace_add("write", self.update_preview)
         self.x_coord.trace_add("write", self.update_preview)
         self.y_coord.trace_add("write", self.update_preview)
         self.scale_x.trace_add("write", self.update_preview)
         self.scale_y.trace_add("write", self.update_preview)
+        self.show_reference.trace_add("write", self.update_preview)
+        self.reference_opacity.trace_add("write", self.update_preview)
+        self.reference_x.trace_add("write", self.update_preview)
+        self.reference_y.trace_add("write", self.update_preview)
+        self.reference_scale_x.trace_add("write", self.update_preview)
+        self.reference_scale_y.trace_add("write", self.update_preview)
 
         # Schedule an initial canvas size update after UI is fully loaded
         self.root.after(100, self.update_preview)
@@ -84,6 +101,9 @@ class ImageOverlayApp:
         graphic_frame = tk.LabelFrame(left_frame, text="Graphic", height=450)
         graphic_frame.pack(fill=tk.BOTH, expand=True, pady=(5, 0))
 
+        reference_frame = tk.LabelFrame(left_frame, text="Reference", height=150)
+        reference_frame.pack(fill=tk.BOTH, expand=False, pady=(5, 0))
+
         # Create preview frame on right
         preview_frame = tk.LabelFrame(right_frame, text="Preview")
         preview_frame.pack(fill=tk.BOTH, expand=True)
@@ -93,6 +113,9 @@ class ImageOverlayApp:
 
         # Fill the Graphic frame
         self.create_graphic_section(graphic_frame)
+
+        # Fill the Reference frame
+        self.create_reference_section(reference_frame)
 
         # Fill the Preview frame
         self.create_preview_section(preview_frame)
@@ -199,6 +222,128 @@ class ImageOverlayApp:
         )
         scale_y_spinbox.pack(side=tk.LEFT)
 
+    def create_reference_section(self, parent):
+        # Reference image selection
+        ref_frame = tk.Frame(parent)
+        ref_frame.pack(fill=tk.X, padx=10, pady=5)
+
+        tk.Label(ref_frame, text="Image:").pack(side=tk.LEFT, padx=(0, 10))
+
+        ref_entry = tk.Entry(ref_frame, textvariable=self.reference_path, width=20)
+        ref_entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
+
+        ref_button = tk.Button(ref_frame, text="📂", command=self.select_reference)
+        ref_button.pack(side=tk.RIGHT, padx=(5, 0))
+
+        # Controls frame for toggle and opacity
+        controls_frame = tk.Frame(parent)
+        controls_frame.pack(fill=tk.X, padx=10, pady=5)
+
+        # Toggle visibility
+        toggle_button = tk.Checkbutton(
+            controls_frame,
+            text="Show Reference",
+            variable=self.show_reference,
+            onvalue=True,
+            offvalue=False,
+        )
+        toggle_button.pack(side=tk.LEFT)
+
+        # Position controls
+        position_frame = tk.LabelFrame(parent, text="Position")
+        position_frame.pack(fill=tk.X, padx=10, pady=5)
+
+        # X coordinate
+        x_frame = tk.Frame(position_frame)
+        x_frame.pack(fill=tk.X, padx=10, pady=5)
+
+        tk.Label(x_frame, text="X:").pack(side=tk.LEFT, padx=(0, 10))
+
+        x_spinbox = ttk.Spinbox(
+            x_frame,
+            from_=-1000,
+            to=1000,
+            textvariable=self.reference_x,
+            width=10,
+            increment=1,
+        )
+        x_spinbox.pack(side=tk.LEFT)
+
+        # Y coordinate
+        y_frame = tk.Frame(position_frame)
+        y_frame.pack(fill=tk.X, padx=10, pady=5)
+
+        tk.Label(y_frame, text="Y:").pack(side=tk.LEFT, padx=(0, 10))
+
+        y_spinbox = ttk.Spinbox(
+            y_frame,
+            from_=-1000,
+            to=1000,
+            textvariable=self.reference_y,
+            width=10,
+            increment=1,
+        )
+        y_spinbox.pack(side=tk.LEFT)
+
+        # Scale controls
+        scale_frame = tk.LabelFrame(parent, text="Scale")
+        scale_frame.pack(fill=tk.X, padx=10, pady=5)
+
+        # Scale X
+        scale_x_frame = tk.Frame(scale_frame)
+        scale_x_frame.pack(fill=tk.X, padx=10, pady=5)
+
+        tk.Label(scale_x_frame, text="X (%):").pack(side=tk.LEFT, padx=(0, 10))
+
+        scale_x_spinbox = ttk.Spinbox(
+            scale_x_frame,
+            from_=10,
+            to=500,
+            textvariable=self.reference_scale_x,
+            width=10,
+            increment=5,
+        )
+        scale_x_spinbox.pack(side=tk.LEFT)
+
+        # Scale Y
+        scale_y_frame = tk.Frame(scale_frame)
+        scale_y_frame.pack(fill=tk.X, padx=10, pady=5)
+
+        tk.Label(scale_y_frame, text="Y (%):").pack(side=tk.LEFT, padx=(0, 10))
+
+        scale_y_spinbox = ttk.Spinbox(
+            scale_y_frame,
+            from_=10,
+            to=500,
+            textvariable=self.reference_scale_y,
+            width=10,
+            increment=5,
+        )
+        scale_y_spinbox.pack(side=tk.LEFT)
+
+        # Opacity control
+        opacity_frame = tk.LabelFrame(parent, text="Opacity")
+        opacity_frame.pack(fill=tk.X, padx=10, pady=5)
+
+        opacity_scale = ttk.Scale(
+            opacity_frame,
+            from_=0,
+            to=100,
+            variable=self.reference_opacity,
+            orient=tk.HORIZONTAL,
+        )
+        opacity_scale.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=10, pady=5)
+
+        # Opacity percentage label
+        opacity_label = tk.Label(opacity_frame, text="30%", width=4)
+        opacity_label.pack(side=tk.LEFT, padx=(0, 10), pady=5)
+
+        # Update opacity label when slider moves
+        def update_opacity_label(*args):
+            opacity_label.config(text=f"{self.reference_opacity.get()}%")
+
+        self.reference_opacity.trace_add("write", update_opacity_label)
+
     def create_preview_section(self, parent):
         # Create canvas for preview
         self.preview_canvas = tk.Canvas(parent, bg="white")
@@ -227,99 +372,176 @@ class ImageOverlayApp:
         if filepath:
             self.base_path.set(filepath)
 
+    def select_reference(self):
+        filepath = filedialog.askopenfilename(
+            title="Select Reference Image",
+            filetypes=[("Image files", "*.png *.jpg *.jpeg *.gif *.bmp")],
+        )
+        if filepath:
+            self.reference_path.set(filepath)
+
     def update_preview(self, *args):
         # Clear current preview
         self.preview_canvas.delete("all")
 
-        # Check if we have both images
-        if not self.base_path.get() or not self.graphic_path.get():
-            return
+        # Check if we have both images for the composite
+        if self.base_path.get() and self.graphic_path.get():
+            try:
+                # Load the base image
+                base_img = Image.open(self.base_path.get())
 
-        try:
-            # Load the base image
-            base_img = Image.open(self.base_path.get())
+                # Load the graphic image
+                graphic_img = Image.open(self.graphic_path.get())
 
-            # Load the graphic image
-            graphic_img = Image.open(self.graphic_path.get())
+                # Get canvas dimensions
+                canvas_width = self.preview_canvas.winfo_width()
+                canvas_height = self.preview_canvas.winfo_height()
 
-            # Get canvas dimensions
-            canvas_width = self.preview_canvas.winfo_width()
-            canvas_height = self.preview_canvas.winfo_height()
+                # If canvas is not visible yet, set minimum dimensions
+                if canvas_width <= 1 or canvas_height <= 1:
+                    canvas_width = 400
+                    canvas_height = 400
 
-            # If canvas is not visible yet, set minimum dimensions
-            if canvas_width <= 1 or canvas_height <= 1:
-                canvas_width = 400
-                canvas_height = 400
+                # Resize the base image to fit the canvas (maintaining aspect ratio)
+                base_width, base_height = base_img.size
+                base_ratio = min(canvas_width / base_width, canvas_height / base_height)
+                new_width = int(base_width * base_ratio)
+                new_height = int(base_height * base_ratio)
 
-            # Resize the base image to fit the canvas (maintaining aspect ratio)
-            base_width, base_height = base_img.size
-            base_ratio = min(canvas_width / base_width, canvas_height / base_height)
-            new_width = int(base_width * base_ratio)
-            new_height = int(base_height * base_ratio)
+                resized_base = base_img.resize(
+                    (new_width, new_height), Image.Resampling.LANCZOS
+                )
 
-            resized_base = base_img.resize(
-                (new_width, new_height), Image.Resampling.LANCZOS
-            )
+                # Create a composite image by pasting the graphic onto the base
+                composite = resized_base.copy()
 
-            # Create a composite image by pasting the graphic onto the base
-            composite = resized_base.copy()
+                # Calculate scaled position based on original base image dimensions
+                x_scale = new_width / base_width
+                y_scale = new_height / base_height
 
-            # Calculate scaled position based on original base image dimensions
-            x_scale = new_width / base_width
-            y_scale = new_height / base_height
+                x_pos = int(self.x_coord.get() * x_scale)
+                y_pos = int(self.y_coord.get() * y_scale)
 
-            x_pos = int(self.x_coord.get() * x_scale)
-            y_pos = int(self.y_coord.get() * y_scale)
+                # Determine the center position on the base image
+                center_x = new_width // 2
+                center_y = new_height // 2
 
-            # Determine the center position on the base image
-            center_x = new_width // 2
-            center_y = new_height // 2
+                # Calculate scaled dimensions for graphic
+                graphic_width = int(graphic_img.width * base_ratio)
+                graphic_height = int(graphic_img.height * base_ratio)
 
-            # Resize graphic while maintaining aspect ratio
-            graphic_width = int(graphic_img.width * base_ratio)
-            graphic_height = int(graphic_img.height * base_ratio)
+                # Apply X and Y scaling
+                scale_x_factor = self.scale_x.get() / 100.0
+                scale_y_factor = self.scale_y.get() / 100.0
+                graphic_width = int(graphic_width * scale_x_factor)
+                graphic_height = int(graphic_height * scale_y_factor)
 
-            # Apply X and Y scaling
-            scale_x_factor = self.scale_x.get() / 100.0
-            scale_y_factor = self.scale_y.get() / 100.0
-            graphic_width = int(graphic_width * scale_x_factor)
-            graphic_height = int(graphic_height * scale_y_factor)
+                graphic_resized = graphic_img.resize(
+                    (graphic_width, graphic_height), Image.Resampling.LANCZOS
+                )
 
-            graphic_resized = graphic_img.resize(
-                (graphic_width, graphic_height), Image.Resampling.LANCZOS
-            )
+                # Calculate top-left position for the graphic image, accounting for its size
+                paste_x = center_x + x_pos - (graphic_resized.width // 2)
+                paste_y = center_y + y_pos - (graphic_resized.height // 2)
 
-            # Calculate top-left position for the graphic image, accounting for its size
-            paste_x = center_x + x_pos - (graphic_resized.width // 2)
-            paste_y = center_y + y_pos - (graphic_resized.height // 2)
+                # Paste the graphic onto the composite image
+                if graphic_resized.mode == "RGBA":
+                    # Use alpha channel for transparent images
+                    composite.paste(
+                        graphic_resized, (paste_x, paste_y), graphic_resized
+                    )
+                else:
+                    composite.paste(graphic_resized, (paste_x, paste_y))
 
-            # Paste the graphic onto the composite image
-            if graphic_resized.mode == "RGBA":
-                # Use alpha channel for transparent images
-                composite.paste(graphic_resized, (paste_x, paste_y), graphic_resized)
-            else:
-                composite.paste(graphic_resized, (paste_x, paste_y))
+                # Store the current composite for export
+                self.current_composite = composite
 
-            # Store the current composite for export
-            self.current_composite = composite
+                # Create a PhotoImage object from the composite image
+                self.preview_image = ImageTk.PhotoImage(composite)
 
-            # Create a PhotoImage object from the composite image
-            self.preview_image = ImageTk.PhotoImage(composite)
+                # Display the composite image on the canvas
+                canvas_center_x = canvas_width // 2
+                canvas_center_y = canvas_height // 2
 
-            # Display the composite image on the canvas
-            canvas_center_x = canvas_width // 2
-            canvas_center_y = canvas_height // 2
+                self.preview_canvas.create_image(
+                    canvas_center_x,
+                    canvas_center_y,
+                    image=self.preview_image,
+                    anchor="center",
+                    tags="composite",
+                )
 
-            self.preview_canvas.create_image(
-                canvas_center_x,
-                canvas_center_y,
-                image=self.preview_image,
-                anchor="center",
-            )
+            except Exception as e:
+                messagebox.showerror("Error", f"Error updating preview: {e}")
+                print(f"Error updating preview: {e}")
 
-        except Exception as e:
-            messagebox.showerror("Error", f"Error updating preview: {e}")
-            print(f"Error updating preview: {e}")
+        # Load and display reference image if path exists and show_reference is True
+        if self.reference_path.get() and self.show_reference.get():
+            try:
+                reference_img = Image.open(self.reference_path.get())
+
+                # Get canvas dimensions
+                canvas_width = self.preview_canvas.winfo_width()
+                canvas_height = self.preview_canvas.winfo_height()
+
+                # If canvas is not visible yet, set minimum dimensions
+                if canvas_width <= 1 or canvas_height <= 1:
+                    canvas_width = 400
+                    canvas_height = 400
+
+                # Resize the reference image to fit the canvas (maintaining aspect ratio)
+                ref_width, ref_height = reference_img.size
+                ref_ratio = min(canvas_width / ref_width, canvas_height / ref_height)
+
+                # Calculate base size (before user scaling)
+                base_width = int(ref_width * ref_ratio)
+                base_height = int(ref_height * ref_ratio)
+
+                # Apply user scaling
+                scale_x_factor = self.reference_scale_x.get() / 100.0
+                scale_y_factor = self.reference_scale_y.get() / 100.0
+                new_width = int(base_width * scale_x_factor)
+                new_height = int(base_height * scale_y_factor)
+
+                resized_reference = reference_img.resize(
+                    (new_width, new_height), Image.Resampling.LANCZOS
+                )
+
+                # Convert to RGBA if not already
+                if resized_reference.mode != "RGBA":
+                    resized_reference = resized_reference.convert("RGBA")
+
+                # Apply opacity
+                opacity = self.reference_opacity.get() / 100.0
+                data = resized_reference.getdata()
+                new_data = []
+                for item in data:
+                    # Preserve original alpha if it exists, otherwise use full opacity
+                    original_alpha = item[3] if len(item) > 3 else 255
+                    new_alpha = int(original_alpha * opacity)
+                    new_data.append((*item[:3], new_alpha))
+
+                resized_reference.putdata(new_data)
+
+                # Create a PhotoImage object from the reference image
+                self.reference_image = ImageTk.PhotoImage(resized_reference)
+
+                # Calculate position with offset
+                canvas_center_x = canvas_width // 2
+                canvas_center_y = canvas_height // 2
+                x_pos = canvas_center_x + self.reference_x.get()
+                y_pos = canvas_center_y + self.reference_y.get()
+
+                # Display the reference image on the canvas
+                self.preview_canvas.create_image(
+                    x_pos,
+                    y_pos,
+                    image=self.reference_image,
+                    anchor="center",
+                    tags="reference",
+                )
+            except Exception as e:
+                messagebox.showerror("Error", f"Error loading reference image: {e}")
 
     def export_image(self):
         if not self.current_composite:
