@@ -107,7 +107,7 @@ class ImageOverlayApp:
         base_entry = tk.Entry(base_frame, textvariable=self.base_path, width=20)
         base_entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
 
-        base_button = tk.Button(base_frame, text="Browse...", command=self.select_base)
+        base_button = tk.Button(base_frame, text="📂", command=self.select_base)
         base_button.pack(side=tk.RIGHT, padx=(5, 0))
 
     def create_graphic_section(self, parent):
@@ -123,7 +123,7 @@ class ImageOverlayApp:
         graphic_entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
 
         graphic_button = tk.Button(
-            graphic_frame, text="Browse...", command=self.select_graphic
+            graphic_frame, text="📂", command=self.select_graphic
         )
         graphic_button.pack(side=tk.RIGHT, padx=(5, 0))
 
