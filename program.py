@@ -10,6 +10,9 @@ class ImageOverlayApp:
         self.root.title("Image Overlay Tool")
         self.root.geometry("1000x600")
 
+        # Create menu bar
+        self.create_menu_bar()
+
         # Variables to store file paths and coordinates
         self.graphic_path = tk.StringVar()
         self.base_path = tk.StringVar()
@@ -37,6 +40,32 @@ class ImageOverlayApp:
 
         # Schedule an initial canvas size update after UI is fully loaded
         self.root.after(100, self.update_preview)
+
+    def create_menu_bar(self):
+        # Create the menu bar
+        menubar = tk.Menu(self.root)
+        self.root.config(menu=menubar)
+
+        # Create File menu
+        file_menu = tk.Menu(menubar, tearoff=0)
+        menubar.add_cascade(label="File", menu=file_menu)
+
+        # Add menu items
+        file_menu.add_command(
+            label="Save", command=self.export_image, accelerator="Command+S"
+        )
+        file_menu.add_command(
+            label="Save As...", command=self.save_as, accelerator="Shift+Command+S"
+        )
+        file_menu.add_separator()
+        file_menu.add_command(
+            label="Exit", command=self.root.quit, accelerator="Command+W"
+        )
+
+        # Bind keyboard shortcuts
+        self.root.bind("<Command-s>", lambda e: self.export_image())
+        self.root.bind("<Shift-Command-s>", lambda e: self.save_as())
+        self.root.bind("<Command-w>", lambda e: self.root.quit())
 
     def create_layout(self):
         # Main layout: left and right frames
@@ -161,15 +190,6 @@ class ImageOverlayApp:
             increment=5,
         )
         scale_y_spinbox.pack(side=tk.LEFT)
-
-        # Export button
-        export_frame = tk.Frame(parent)
-        export_frame.pack(fill=tk.X, padx=10, pady=10)
-
-        export_button = tk.Button(
-            export_frame, text="Export Image", command=self.export_image, width=20
-        )
-        export_button.pack(side=tk.TOP)
 
     def create_preview_section(self, parent):
         # Create canvas for preview
@@ -313,6 +333,39 @@ class ImageOverlayApp:
             messagebox.showinfo("Success", f"Image exported successfully as {filename}")
         except Exception as e:
             messagebox.showerror("Error", f"Failed to export image: {e}")
+
+    def save_as(self):
+        if not self.current_composite:
+            messagebox.showerror(
+                "Error",
+                "No image to save. Please load both base and graphic images first.",
+            )
+            return
+
+        # Generate default filename with current timestamp
+        timestamp = datetime.now().isoformat().replace(":", "-").split(".")[0]
+        default_name = f"export_{timestamp}.png"
+
+        # Open save file dialog
+        filepath = filedialog.asksaveasfilename(
+            defaultextension=".png",
+            initialfile=default_name,
+            filetypes=[
+                ("PNG files", "*.png"),
+                ("JPEG files", "*.jpg;*.jpeg"),
+                ("All files", "*.*"),
+            ],
+        )
+
+        if filepath:  # If user didn't cancel
+            try:
+                # Save the image
+                self.current_composite.save(filepath)
+                messagebox.showinfo(
+                    "Success", f"Image saved successfully as {filepath}"
+                )
+            except Exception as e:
+                messagebox.showerror("Error", f"Failed to save image: {e}")
 
 
 if __name__ == "__main__":
