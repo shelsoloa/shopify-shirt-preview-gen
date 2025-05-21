@@ -1,9 +1,8 @@
+from datetime import datetime
 import tkinter as tk
 from tkinter import filedialog, ttk, messagebox
-from PIL import Image, ImageTk
-from datetime import datetime
-import time
 from functools import wraps
+from PIL import Image, ImageTk
 
 
 def debounce(wait):
