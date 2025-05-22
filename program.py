@@ -56,6 +56,7 @@ class ImageOverlayApp:
         self.reference_y = tk.IntVar(value=0)  # Reference Y position
         self.reference_scale_x = tk.IntVar(value=100)  # Reference X scale percentage
         self.reference_scale_y = tk.IntVar(value=100)  # Reference Y scale percentage
+        self.apply_background = tk.BooleanVar(value=False)  # Toggle for background
 
         # Cache for processed images
         self.cache = {
@@ -99,6 +100,7 @@ class ImageOverlayApp:
             self.reference_y,
             self.reference_scale_x,
             self.reference_scale_y,
+            self.apply_background,
         ]:
             var.trace_add("write", self.trigger_update_preview)
 
@@ -170,7 +172,7 @@ class ImageOverlayApp:
     def create_base_section(self, parent):
         # Base image selection
         base_frame = tk.Frame(parent)
-        base_frame.pack(fill=tk.X, padx=10, pady=10)
+        base_frame.pack(fill=tk.X, padx=10, pady=5)
 
         tk.Label(base_frame, text="Image:").pack(side=tk.LEFT, padx=(0, 10))
 
@@ -179,6 +181,19 @@ class ImageOverlayApp:
 
         base_button = tk.Button(base_frame, text="📂", command=self.select_base)
         base_button.pack(side=tk.RIGHT, padx=(5, 0))
+
+        # Background toggle
+        bg_frame = tk.Frame(parent)
+        bg_frame.pack(fill=tk.X, padx=10, pady=5)
+
+        bg_toggle = tk.Checkbutton(
+            bg_frame,
+            text="Apply Background",
+            variable=self.apply_background,
+            onvalue=True,
+            offvalue=False,
+        )
+        bg_toggle.pack(side=tk.LEFT)
 
     def create_graphic_section(self, parent):
         # Graphic image selection
@@ -440,6 +455,12 @@ class ImageOverlayApp:
             canvas_width = 400
             canvas_height = 400
 
+        # Set canvas background color if background is enabled
+        if self.apply_background.get():
+            self.preview_canvas.configure(bg="#b4b4b4")
+        else:
+            self.preview_canvas.configure(bg="white")
+
         canvas_size = (canvas_width, canvas_height)
         current_scale = (self.scale_x.get(), self.scale_y.get())
 
@@ -646,15 +667,40 @@ class ImageOverlayApp:
             )
             return
 
+        # If background is enabled, create a new image with padding
+        if self.apply_background.get():
+            # Calculate padding (10% of the original dimensions)
+            padding_x = int(self.current_composite.width * 0.1)
+            padding_y = int(self.current_composite.height * 0.1)
+
+            # Create new image with background color and padding
+            new_width = self.current_composite.width + (padding_x * 2)
+            new_height = self.current_composite.height + (padding_y * 2)
+
+            # Create background image
+            background = Image.new("RGB", (new_width, new_height), "#b4b4b4")
+
+            # Paste the composite onto the background
+            if self.current_composite.mode == "RGBA":
+                background.paste(
+                    self.current_composite,
+                    (padding_x, padding_y),
+                    self.current_composite,
+                )
+            else:
+                background.paste(self.current_composite, (padding_x, padding_y))
+
+            export_image = background
+        else:
+            export_image = self.current_composite
+
         # Generate filename with current timestamp
-        timestamp = (
-            datetime.now().isoformat().replace(":", "-").split(".")[0]
-        )  # Remove milliseconds and replace colons
+        timestamp = datetime.now().isoformat().replace(":", "-").split(".")[0]
         filename = f"export_{timestamp}.png"
 
         try:
             # Save the image
-            self.current_composite.save(filename, "PNG")
+            export_image.save(filename, "PNG")
             messagebox.showinfo("Success", f"Image exported successfully as {filename}")
         except Exception as e:
             messagebox.showerror("Error", f"Failed to export image: {e}")
@@ -684,8 +730,35 @@ class ImageOverlayApp:
 
         if filepath:  # If user didn't cancel
             try:
+                # If background is enabled, create a new image with padding
+                if self.apply_background.get():
+                    # Calculate padding (10% of the original dimensions)
+                    padding_x = int(self.current_composite.width * 0.1)
+                    padding_y = int(self.current_composite.height * 0.1)
+
+                    # Create new image with background color and padding
+                    new_width = self.current_composite.width + (padding_x * 2)
+                    new_height = self.current_composite.height + (padding_y * 2)
+
+                    # Create background image
+                    background = Image.new("RGB", (new_width, new_height), "#b4b4b4")
+
+                    # Paste the composite onto the background
+                    if self.current_composite.mode == "RGBA":
+                        background.paste(
+                            self.current_composite,
+                            (padding_x, padding_y),
+                            self.current_composite,
+                        )
+                    else:
+                        background.paste(self.current_composite, (padding_x, padding_y))
+
+                    export_image = background
+                else:
+                    export_image = self.current_composite
+
                 # Save the image
-                self.current_composite.save(filepath)
+                export_image.save(filepath)
                 messagebox.showinfo(
                     "Success", f"Image saved successfully as {filepath}"
                 )
